@@ -14,6 +14,7 @@ load_dotenv()
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
+
 def get_pdf_text(pdf_docs):
     text = ""
     for pdf in pdf_docs:
@@ -22,15 +23,19 @@ def get_pdf_text(pdf_docs):
             text += page.extract_text()
     return text
 
+
 def get_text_chunks(text):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=10000, chunk_overlap=1000)
     chunks = text_splitter.split_text(text)
     return chunks
+
 
 def get_vector_store(text_chunks):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
     vector_store.save_local("faiss_index")
+
 
 def get_conversational_chain():
     prompt_template = """
@@ -44,23 +49,32 @@ def get_conversational_chain():
     Answer:
     """
     model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.3)
-    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+    prompt = PromptTemplate(template=prompt_template,
+                            input_variables=["context", "question"])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
     return chain
 
+
 def user_input(user_question):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+    new_db = FAISS.load_local(
+        "faiss_index", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
     chain = get_conversational_chain()
-    response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+    response = chain(
+        {"input_documents": docs, "question": user_question}, return_only_outputs=True)
     st.write("Reply: ", response["output_text"])
 
+
 def main():
-    st.set_page_config(page_title="PDF Sage", layout="wide")
-    st.title("PDF Sage 📄")
+    st.set_page_config(page_title="PDF Sage", layout="wide", initial_sidebar_state="expanded")
+    
+    st.markdown('<div class="header"><h1 class="title">PDF Sage 📄</h1></div>',
+                unsafe_allow_html=True)
+
     st.markdown("""
         <style>
+        
         .instructions {
             background-color: inherit;
             padding: 10px;
@@ -70,12 +84,27 @@ def main():
         .instructions h5 {
             margin: 0;
         }
+        .header {
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .stTextInput input {
+            border: 2px solid #2980b9;
+            border-radius: 5px;
+        }
+        .stTextInput input:focus {
+            border: 2px solid #1abc9c;
+        }
         </style>
     """, unsafe_allow_html=True)
-    
+
     with st.sidebar:
         st.title("Menu:")
-        pdf_docs = st.file_uploader("Upload your PDF Files", accept_multiple_files=True)
+        pdf_docs = st.file_uploader(
+            "Upload your PDF Files", accept_multiple_files=True)
         if st.button("Submit & Process"):
             if pdf_docs:
                 with st.spinner("Processing..."):
@@ -100,10 +129,11 @@ def main():
         """, unsafe_allow_html=True)
 
     user_question = st.text_input("Ask a Question from the PDF Files")
-    
+
     if user_question:
         st.session_state.submitted = True
         user_input(user_question)
+
 
 if __name__ == "__main__":
     main()
